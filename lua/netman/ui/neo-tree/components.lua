@@ -15,24 +15,38 @@ local common = require("neo-tree.sources.common.components")
 local netman = require("netman.ui.neo-tree")
 local netman_host_states = require("netman.tools.options").ui.STATES
 local log = require("netman.tools.utils").log
-local icon_map = function(item) return '' end
-local success, web_devicons = pcall(require, "nvim-web-devicons")
-if success then
-    icon_map = web_devicons.get_icon
+local icon_map = function(item, protocol)
+    local protocol_icon_map = {
+        ssh = "󰒍",
+        docker = "",
+    }
+    if (not item or item == '') and protocol then
+        return protocol_icon_map[protocol] or "󰒋", ""
+    end
+    local success, web_devicons = pcall(require, "nvim-web-devicons")
+    if success then
+        local icon, hl = web_devicons.get_icon(vim.split(item, " ")[1])
+        if not icon then
+            return protocol_icon_map[protocol] or "󰒋", ""
+        else
+            return icon, hl
+        end
+    end
+    return "", ""
 end
 
 local M = {
     internal = {
         refresh_icon = " ",
-        marked_icon = '♦ ',
+        marked_icon = " ",
     }
 }
 
 M.internal.state_map = {
-    [netman_host_states.UNKNOWN] = {text=" ", highlight=""},
-    [netman_host_states.AVAILABLE] = {text=" ", highlight="NeoTreeGitAdded"},
-    [netman_host_states.STOPPED] = {text=" ", highlight="NeoTreeGitDeleted"},
-    [netman_host_states.ERROR] = {text="❗", highlight="NeoTreeGitDeleted"},
+    [netman_host_states.UNKNOWN] = {text="", highlight=""},
+    [netman_host_states.AVAILABLE] = {text="", highlight="NeoTreeGitAdded"},
+    [netman_host_states.STOPPED] = {text="", highlight="NeoTreeGitDeleted"},
+    [netman_host_states.ERROR] = {text="󱈸", highlight="NeoTreeGitDeleted"},
     [netman_host_states.REFRESHING] = {text=M.internal.refresh_icon, highlight=""}
 }
 
@@ -75,7 +89,8 @@ M.icon = function(config, node, state)
     elseif entry.icon then
         _icon.text = string.format("%s ", entry.icon)
     elseif node.type == 'netman_host' then
-        _icon.text, _icon.highlight = icon_map(entry.os)
+        local protocol = node.extra.uri:match("^(%a+):")
+        _icon.text, _icon.highlight = icon_map(entry.os, protocol)
         -- Use this as a place to have the OS icon?
     end
     _icon.highlight = entry.highlight or _icon.highlight
@@ -83,7 +98,7 @@ M.icon = function(config, node, state)
 end
 
 M.state = function(config, node, state)
-    local icon = "  "
+    local icon = ""
     local highlight = nil
     local entry = node.extra
     if not entry then
