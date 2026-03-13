@@ -186,6 +186,7 @@ local function create_node(node_details, parent_id)
         name = node.name,
         type = node.type,
         _is_expanded = node_details.expanded,
+        path = node_details.extra and node_details.extra.path or '',
         extra = node_details.extra or {}
     }
     if node_details.children then
