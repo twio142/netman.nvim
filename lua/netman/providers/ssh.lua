@@ -811,7 +811,7 @@ function SSH:touch(locations, opts)
     local __ = {}
     for _, location in ipairs(locations) do
         if location.__type and location.__type == 'netman_uri' then location = location:to_string() end
-        table.insert(touch_command, location)
+        table.insert(touch_command, vim.fn.shellescape(location))
         table.insert(__, location)
     end
     locations = __
@@ -875,7 +875,7 @@ function SSH:mkdir(locations, opts)
     local __ = {}
     for _, location in ipairs(locations) do
         if location.__type and location.__type == 'netman_uri' then location = location:to_string() end
-        table.insert(mkdir_command, location)
+        table.insert(mkdir_command, vim.fn.shellescape(location))
         table.insert(__, location)
     end
     locations = __
@@ -954,7 +954,7 @@ function SSH:rm(locations, opts)
         end
         assert(location.__type and location.__type == 'netman_uri',
             string.format("%s is not a valid netman uri", location))
-        table.insert(rm_command, location:to_string())
+        table.insert(rm_command, vim.fn.shellescape(location:to_string()))
         table.insert(__, location:to_string())
     end
     locations = __
@@ -1470,7 +1470,7 @@ function SSH:stat(locations, target_flags, opts)
             location = location:to_string()
         end
         table.insert(__, location)
-        table.insert(stat_command, location)
+        table.insert(stat_command, vim.fn.shellescape(location))
     end
     locations = __
     local command_opts = {
