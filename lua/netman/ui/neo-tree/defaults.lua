@@ -50,6 +50,8 @@ config.window.mappings = {
     ['m'] = 'mark_node',
     ['u'] = 'unmark_all_nodes',
     ['y'] = "yank_node",
+    -- Note, hosts open a terminal via open_split/open_vsplit (S/s by default), so
+    -- open_terminal_split/open_terminal_vsplit are intentionally left unmapped here
     -- ['f'] = 'search'
 }
 

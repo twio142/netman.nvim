@@ -1855,6 +1855,7 @@ end
 ---     - OS
 ---     - ENTRYPOINT
 ---         - Note, ENTRYPOINT may be a function as well, if getting the ENTRYPOINT is "painful" to get
+---     - TERMINAL_COMMAND
 function M.ui.get_host_details(config, host, provider_cache)
     -- TODO, its probably worth caching this stuff in our config instead of reaching out to each server to get the details
     local connection = SSH:new(host, provider_cache)
@@ -1880,7 +1881,12 @@ function M.ui.get_host_details(config, host, provider_cache)
         NAME = host,
         URI = string.format("ssh://%s///", host),
         OS = get_os,
-        ENTRYPOINT = get_path
+        ENTRYPOINT = get_path,
+        -- Note, we are intentionally _not_ reusing connection.console_command here.
+        -- Handing ssh nothing but the host lets it resolve the user's ssh config
+        -- (user, port, key, proxyjump, etc) itself, which is what a user expects
+        -- of an interactive session
+        TERMINAL_COMMAND = { 'ssh', host }
     }
 end
 

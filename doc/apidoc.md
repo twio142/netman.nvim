@@ -489,6 +489,7 @@ See [`copy`](#copyuris-target_uri-cache---table) as this definition is the exact
         - URI (string)
         - STATE (Optional | string from [netman.options.ui.states](https://github.com/miversen33/netman.nvim/blob/main/lua/netman/tools/options.lua#L100-L104)
         - ENTRYPOINT (Optional| table of URIs, or a single function to call to get said table of URIs. Used to determine what directory to "start" the host at when displaying to the user)
+        - TERMINAL_COMMAND (Optional| table containing the command (and its arguments) to run to get an interactive shell on the host, or a single function to call to get said table. The command is executed directly instead of being handed to a local shell, so it should _not_ be shell escaped)
 
 # Providers
 A [`provider`](#providers) is a program (`Neovim` plugin in the case of `Netman`) that acts as a middle man between [`api`](#api) and external programs. The [`providers`](#providers) job is to communicate with said external programs and return consistently formatted data to the [`api`](#api) so it can be returned to the user to be handled.

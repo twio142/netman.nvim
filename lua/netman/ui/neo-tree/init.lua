@@ -332,7 +332,8 @@ local function navigate_provider(nui_node)
                     uri = raw_host_details.uri,
                     entrypoint = raw_host_details.entrypoint,
                     last_access = raw_host_details.last_loaded,
-                    get_os = raw_host_details.os
+                    get_os = raw_host_details.os,
+                    terminal_command = raw_host_details.terminal_command
                 }
             }
             create_node(host_details, nui_node:get_id())
@@ -456,7 +457,7 @@ local function open_uri(uri, link_callback, dest_callback, message_callback)
     end)
 end
 
-local function navigate_uri(nui_node, state, complete_callback, remaining_uris, focus_node)
+local function navigate_uri(nui_node, state, complete_callback, remaining_uris, focus_node, open_cmd)
     -- TODO: We need something to prevent accidentally executing "multiple" reads at once
     local node = get_mapped_node(nui_node)
     if nui_node:is_expanded() then
@@ -489,7 +490,7 @@ local function navigate_uri(nui_node, state, complete_callback, remaining_uris, 
             local new_nui_node = state.tree:get_node(next_uri)
             if new_nui_node then
                 logger.debug("Following entrypoint. Next item", next_uri)
-                return navigate_uri(new_nui_node, state, complete_callback, uris, next_uri)
+                return navigate_uri(new_nui_node, state, complete_callback, uris, next_uri, open_cmd)
             end
         end
         if focus_node then
@@ -510,7 +511,7 @@ local function navigate_uri(nui_node, state, complete_callback, remaining_uris, 
         vim.defer_fn(function()
             logger.debug("Deferred opening of destination")
             neo_tree_renderer.redraw(state)
-            neo_tree_utils.open_file(state, uri)
+            neo_tree_utils.open_file(state, uri, open_cmd)
             wrapped_callback()
         end, 1)
     end
@@ -1146,7 +1147,15 @@ function M.delete(state, confirmed, callback)
     end
 end
 
-function M.navigate(state, target_node)
+--- Navigates the tree, expanding/collapsing nodes as needed. File nodes are opened instead
+--- @param state table
+---     The neo-tree state
+--- @param target_node table | nil
+---     Optional node to navigate. Defaults to the node under the cursor
+--- @param open_cmd string | nil
+---     Optional vim command to open a file node with (EG "split", "vsplit", "tabnew").
+---     Defaults to "edit". Ignored by anything that isn't a file
+function M.navigate(state, target_node, open_cmd)
     local tree = state.tree
     local render_tree = nil
     local render_parent = nil
@@ -1163,13 +1172,111 @@ function M.navigate(state, target_node)
                 logger.warnf("Unable to find matching mapped node for %s!", target_node:get_id())
                 return
             end
-            render_tree, do_redraw_only = mapped_node.navigate(target_node, state)
+            render_tree, do_redraw_only = mapped_node.navigate(target_node, state, nil, nil, nil, open_cmd)
             if render_tree then
                 render_parent = target_node:get_id()
             end
         end
     end
     M.internal.finish_navigate(state, render_tree, render_parent, do_redraw_only)
+end
+
+--- Creates (and moves to) a new window to dump something into.
+--- Mirrors what neo-tree does when opening a file, so we don't
+--- end up splitting (or clobbering) the tree itself
+--- @param state table
+---     The neo-tree state
+--- @param split_cmd string
+---     The vim command used to create the new window (EG "split", "vsplit")
+function M.internal.create_split(state, split_cmd)
+    local winid, is_neo_tree_window = neo_tree_utils.get_appropriate_window(state)
+    vim.api.nvim_set_current_win(winid)
+    if not is_neo_tree_window then
+        vim.cmd(split_cmd)
+        return
+    end
+    -- The tree is the only window we have, so force the split off to the side of it
+    -- and put the tree back to being a sidebar afterwards
+    local width = vim.api.nvim_win_get_width(winid)
+    if width == vim.o.columns then
+        width = neo_tree_utils.resolve_width(neo_tree_utils.get_value(state, "window.width", 40, false))
+    end
+    local forced_splits = {
+        left = "rightbelow vsplit",
+        right = "leftabove vsplit"
+    }
+    vim.cmd(forced_splits[state.current_position] or "vsplit")
+    vim.api.nvim_win_set_width(winid, width)
+end
+
+--- Opens a terminal (in a new window) that is connected to the host under the cursor.
+--- Note, this only works on netman host nodes, and only for hosts whose provider told us
+--- how to connect to them (see the TERMINAL_COMMAND entry of netman.tools.options.ui.ENTRY_SCHEMA)
+--- @param state table
+---     The neo-tree state
+--- @param split_cmd string | nil
+---     Optional vim command to create the terminal's window with (EG "split", "vsplit").
+---     Defaults to "split"
+--- @param target_node table | nil
+---     Optional node to open a terminal for. Defaults to the node under the cursor
+--- @return boolean
+---     Returns false if there was nothing to open a terminal with, which lets the
+---     caller decide what (if anything) should be done with the node instead
+function M.open_terminal(state, split_cmd, target_node)
+    local tree = state.tree
+    if not tree then
+        logger.info("Unable to open a terminal as there is no tree to open one from. How did you do this????")
+        return false
+    end
+    local nui_node = target_node or tree:get_node()
+    if not nui_node then return false end
+    if nui_node.type ~= M.constants.TYPES.NETMAN_HOST then
+        logger.infof("%s is not a netman host, unable to open a terminal for it", nui_node.name)
+        return false
+    end
+    local node = get_mapped_node(nui_node)
+    if not node then
+        logger.warnf("Unable to find matching mapped node for %s!", nui_node:get_id())
+        return false
+    end
+    local command = node.extra.terminal_command
+    if type(command) == 'function' then
+        command = command()
+    end
+    if not command or #command == 0 then
+        logger.infof("%s's provider doesn't support opening a terminal", node.name)
+        return false
+    end
+    logger.tracef("Opening terminal for %s", node.id)
+    M.internal.create_split(state, split_cmd or "split")
+    -- A terminal can only be attached to an empty buffer, so make sure the new window has one
+    vim.cmd("enew")
+    local term_window = vim.api.nvim_get_current_win()
+    local term_buffer = vim.api.nvim_get_current_buf()
+    -- Note, the command is a table, meaning it is executed directly instead of
+    -- being handed off to (and thus mangled by) the local shell
+    local success, job_id = pcall(function()
+        -- TODO: vim.fn.termopen is deprecated as of neovim 0.11. Remove this branch
+        -- once we no longer care about anything older than that
+        if vim.fn.has('nvim-0.11') == 1 then
+            return vim.fn.jobstart(command, { term = true })
+        end
+        ---@diagnostic disable-next-line: deprecated
+        return vim.fn.termopen(command)
+    end)
+    if not success or job_id <= 0 then
+        logger.warn(string.format("Unable to start terminal for %s", node.id), command, job_id)
+        logger.warnnf("Unable to open a terminal for %s", node.name)
+        -- Nothing useful ended up in the window we made, so clean it up
+        pcall(vim.api.nvim_win_close, term_window, true)
+        pcall(vim.api.nvim_buf_delete, term_buffer, { force = true })
+        -- The host _does_ have a terminal, we just couldn't start it. The user has been
+        -- told as much, so don't let the caller do something else with the node
+        return true
+    end
+    vim.api.nvim_buf_set_var(term_buffer, 'netman_host_uri', node.id)
+    vim.cmd("startinsert")
+    return true
 end
 
 function M.rename(state)

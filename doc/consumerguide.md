@@ -631,7 +631,8 @@ More details on this can be found with `:h netman.ui.get_provider`, however the 
   last_access = LAST_ACCESSED, -- Optional, if provided, will be a timestamp of the last time this URI was accessed
   uri = URI, -- the URI of the host. Usually the same as ID but not always
   os = OS, -- Optional, A function that can be called to get the OS of the connection. The os will always be lowercase. Useful if you want to display an icon for the OS
-  entrypoint = ENTRYPOINT -- Optional, a 1 dimensional table or function that can be called to get the entrypoint for the node. If this is not provided, its safe to assume `uri` is the entrypoint. This is useful for systems where you want to immediately navigate to a user's home directory (for example),
+  entrypoint = ENTRYPOINT, -- Optional, a 1 dimensional table or function that can be called to get the entrypoint for the node. If this is not provided, its safe to assume `uri` is the entrypoint. This is useful for systems where you want to immediately navigate to a user's home directory (for example),
+  terminal_command = TERMINAL_COMMAND -- Optional, a 1 dimensional table (or function that can be called to get said table) containing the command and its arguments to run to get an interactive shell on the host. Note, this is executed directly and not via a local shell, so it should not be shell escaped
 }
 ```
 

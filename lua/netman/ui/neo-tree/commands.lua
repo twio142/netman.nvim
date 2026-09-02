@@ -81,21 +81,59 @@ M.paste_node = function(state, callback)
     do_callback(callback)
 end
 
--- -- TODO:
--- M.open_split = function(state, callback)
---
--- end
---
--- -- TODO:
--- M.open_vsplit = function(state, callback)
---
--- end
---
--- -- TODO:
--- M.open_tabnew = function(state, callback)
---
--- end
---
+--- Opens whatever is relevant for the node under the cursor in a new window.
+--- Hosts have no contents of their own to display, so they get a terminal
+--- connected to them instead. Everything else is navigated as usual
+--- @param state table
+---     The neo-tree state
+--- @param split_cmd string
+---     The vim command to create the new window with (EG "split", "vsplit")
+local open_or_terminal = function(state, split_cmd)
+    local node = state.tree and state.tree:get_node()
+    if
+        node
+        and node.type == ui.constants.TYPES.NETMAN_HOST
+        -- A provider isn't required to tell us how to get a shell on its hosts. If this
+        -- one didn't, fall through and treat the host like any other node
+        and ui.open_terminal(state, split_cmd, node)
+    then
+        return
+    end
+    ui.navigate(state, nil, split_cmd)
+end
+
+--- Opens the node in a horizontal split. Hosts open a terminal,
+--- directory-ish nodes are simply expanded/collapsed
+M.open_split = function(state, callback)
+    open_or_terminal(state, "split")
+    do_callback(callback)
+end
+
+--- Opens the node in a vertical split. Hosts open a terminal,
+--- directory-ish nodes are simply expanded/collapsed
+M.open_vsplit = function(state, callback)
+    open_or_terminal(state, "vsplit")
+    do_callback(callback)
+end
+
+--- Opens the node in a new tab. Directory-ish nodes are simply expanded/collapsed
+M.open_tabnew = function(state, callback)
+    ui.navigate(state, nil, "tabnew")
+    do_callback(callback)
+end
+
+--- Opens a terminal connected to the host under the cursor in a horizontal split
+M.open_terminal_split = function(state, callback)
+    ui.open_terminal(state, "split")
+    do_callback(callback)
+end
+
+--- Opens a terminal connected to the host under the cursor in a vertical split
+M.open_terminal_vsplit = function(state, callback)
+    ui.open_terminal(state, "vsplit")
+    do_callback(callback)
+end
+
 -- -- TODO:
 -- M.open_drop = function(state, callback)
 --

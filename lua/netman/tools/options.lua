@@ -102,7 +102,8 @@ return {
             LAST_ACCESSED = "LAST_ACCESSED",
             URI = "URI",
             OS = "OS",
-            ENTRYPOINT = 'ENTRYPOINT'
+            ENTRYPOINT = 'ENTRYPOINT',
+            TERMINAL_COMMAND = 'TERMINAL_COMMAND'
         },
         STATES = {
             UNKNOWN = "UNKNOWN",

@@ -1940,6 +1940,7 @@ end
 ---     - URI
 ---     - STATE
 ---     - OS
+---     - TERMINAL_COMMAND
 ---@diagnostic disable-next-line: unused-local
 function M.ui.get_host_details(config, container_name, cache)
     local container = M.internal.Container:new(container_name, cache)
@@ -1959,7 +1960,15 @@ function M.ui.get_host_details(config, container_name, cache)
         NAME = container_name,
         OS = container.os:lower():match('^([a-z]+)'),
         URI = string.format("docker://%s/", container_name),
-        STATE = get_state
+        STATE = get_state,
+        -- Containers can't be relied on to have anything more than /bin/sh, so we use that to
+        -- look up (and then exec into) the login shell of whatever user we land in the container as.
+        -- Note, the command is deliberately _not_ shell escaped/quoted as it is never handed to a
+        -- local shell, meaning the substitutions below are performed inside the container
+        TERMINAL_COMMAND = {
+            'docker', 'exec', '-it', container_name,
+            '/bin/sh', '-c', 'eval $(grep ^$(id -un): /etc/passwd | cut -d : -f 7-)'
+        }
     }
     return host_details
 end

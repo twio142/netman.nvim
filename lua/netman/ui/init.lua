@@ -65,7 +65,8 @@ end
 ---     state = String: A "state" the host is currently in. See netman.tools.options.ui.STATES for valid states,
 ---     last_access = String: may be nil if the provider doesn't report, otherwise, this will be the last time this host was accessed by the user,
 ---     uri = String: The URI to access the host,
----     entrypoint = Table|Function: This may be a 1 Dimensional table of URIs to "navigate" to in order to reach the entrypoint of the host. If this is a function, the provider likely needs to fetch this from the host itself. If it is a function, it will (when called) return this same 1 Dimensional table of URIs to "navigate" to
+---     entrypoint = Table|Function: This may be a 1 Dimensional table of URIs to "navigate" to in order to reach the entrypoint of the host. If this is a function, the provider likely needs to fetch this from the host itself. If it is a function, it will (when called) return this same 1 Dimensional table of URIs to "navigate" to,
+---     terminal_command = Table|Function: May be nil if the provider doesn't support it. This will be a 1 Dimensional table containing the command (and its arguments) to run to get an interactive shell on the host. As it is executed directly (and _not_ via a local shell), it should not be shell escaped. If this is a function, it will (when called) return that same 1 Dimensional table
 --- }
 function M.get_providers()
     logger.trace("Fetching Netman Providers")
@@ -126,7 +127,8 @@ function M.get_providers()
                         last_access = raw_details.LAST_ACCESSED,
                         uri = raw_details.URI,
                         os = raw_details.OS,
-                        entrypoint = raw_details.ENTRYPOINT
+                        entrypoint = raw_details.ENTRYPOINT,
+                        terminal_command = raw_details.TERMINAL_COMMAND
                     }
                 end
             end
