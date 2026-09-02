@@ -45,13 +45,13 @@ M.delete = function(state, callback)
 end
 
 M.yank_node = function(state, callback)
-    ui.set_mark_action('copy')
+    ui.set_mark_action(state, 'copy')
     -- TODO: Add copying the node(s) names to a register?
     do_callback(callback)
 end
 
 M.move_node = function(state, callback)
-    ui.set_mark_action('move')
+    ui.set_mark_action(state, 'move')
     do_callback(callback)
 end
 
@@ -67,6 +67,12 @@ end
 
 M.mark_node_visual = function(state, selected_nodes, callback)
     ui.mark_node_visual(state, selected_nodes)
+    do_callback(callback)
+end
+
+-- Note, unmark_node with no node given clears every mark, not just one
+M.unmark_all_nodes = function(state, callback)
+    ui.unmark_node(state)
     do_callback(callback)
 end
 

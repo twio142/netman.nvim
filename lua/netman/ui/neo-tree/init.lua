@@ -1246,12 +1246,22 @@ function M.unmark_node(state, node, dont_redraw)
         end
         M.internal.marked_nodes[marked_node_id] = nil
     end
+    if not next(M.internal.marked_nodes) then
+        -- Nothing is marked any more, so there is no pending action to color
+        M.internal.mark_action = nil
+    end
     if not dont_redraw then
         neo_tree_renderer.redraw(state)
     end
 end
 
-function M.set_mark_action(action)
+--- Sets the action that will be run against the marked nodes when they are pasted
+--- @param state table
+---     The neo-tree state. Needed so the marks can be redrawn in the color for
+---     the action that was just picked
+--- @param action string
+---     One of @see M.constants.ACTIONS
+function M.set_mark_action(state, action)
     -- TODO: This should be a global constant
     if not next(M.internal.marked_nodes) then
         logger.infon("There are no marked nodes")
@@ -1268,8 +1278,10 @@ function M.set_mark_action(action)
         logger.warnnf("Invalid action selection: %s", action)
         return
     end
-    logger.warnnf("Marked nodes prepared for %s", action)
+    logger.infonf("Marked nodes prepared for %s", action)
     M.internal.mark_action = action
+    -- Redraw so the marks pick up the color for this action
+    neo_tree_renderer.redraw(state)
 end
 
 --- Toggles (or sets) the mark on a single node.
@@ -1305,6 +1317,10 @@ function M.mark_node(state)
     -- the extra returns do not spill into set_node_mark as force_mark
     local node = tree:get_node()
     if not set_node_mark(node) then return end
+    if not next(M.internal.marked_nodes) then
+        -- Nothing is marked any more, so there is no pending action to color
+        M.internal.mark_action = nil
+    end
     neo_tree_renderer.redraw(state)
 end
 

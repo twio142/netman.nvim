@@ -58,6 +58,12 @@ M.action = function(config, node, state)
     return _icon
 end
 
+-- Colors the mark icon based on what will happen to the marked nodes on paste
+M.internal.mark_action_map = {
+    copy = "NeoTreeGitAdded",
+    move = "NeoTreeGitDeleted"
+}
+
 M.marked = function(config, node, state)
     local _icon = { text = '', highlight = '' }
     local entry = node.extra
@@ -65,6 +71,9 @@ M.marked = function(config, node, state)
         return
     end
     _icon.text = M.internal.marked_icon
+    -- Note, a nil mark_action is a valid (empty) lookup, it just means no
+    -- action has been picked yet, so the icon stays unstyled
+    _icon.highlight = M.internal.mark_action_map[netman.internal.mark_action] or ''
     return _icon
 end
 

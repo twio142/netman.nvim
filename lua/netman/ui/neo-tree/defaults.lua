@@ -48,6 +48,7 @@ config.window.mappings = {
     ['x'] = 'move_node',
     ['p'] = 'paste_node',
     ['m'] = 'mark_node',
+    ['u'] = 'unmark_all_nodes',
     ['y'] = "yank_node",
     -- ['f'] = 'search'
 }
