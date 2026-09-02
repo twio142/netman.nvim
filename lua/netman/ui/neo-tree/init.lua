@@ -1006,6 +1006,12 @@ function M.add(state, opts, callback)
         -- this later to make a relatively minimal set of redraw calls to neo-tree
         target_node = tree:get_node(target_node:get_parent_id())
     end
+    -- You can only add nodes to something that is an actual filesystem. Providers,
+    -- bookmarks and the like have nothing to add to, so quietly do nothing
+    if target_node.type ~= M.constants.TYPES.NETMAN_EXPLORE and target_node.type ~= M.constants.TYPES.NETMAN_HOST then
+        logger.tracef("Selected node (%s) is not a valid add target", target_node:get_id())
+        return
+    end
     opts.target_node = target_node
     -- Get the parent directory for target if the current node is a file
     local force_dir = opts.force_dir
@@ -1013,10 +1019,10 @@ function M.add(state, opts, callback)
     local process_new_node_name = function(response)
         add_uri(state, response, opts, callback)
     end
-    local message = "New Node Name"
+    local message = "Enter name for a new node"
     if not force_dir then
         -- TODO: Indicate the proper path sep based on the provider
-        message = message .. " Add / at the end to specify the node is a directory"
+        message = message .. ' (dirs end with a "/")'
     end
     neo_tree_input.input(message, "", process_new_node_name)
 end
@@ -1173,6 +1179,16 @@ function M.rename(state)
         return
     end
     local node = tree:get_node()
+    -- Only nodes that actually live on a remote filesystem can be renamed. Providers,
+    -- hosts, bookmarks and the like are a noop
+    if
+        node.type ~= M.constants.TYPES.NETMAN_EXPLORE
+        and node.type ~= M.constants.TYPES.NETMAN_FILE
+        and node.type ~= M.constants.TYPES.NETMAN_STREAM
+    then
+        logger.tracef("Selected node (%s) is not renamable", node:get_id())
+        return
+    end
     local parent = tree:get_node(node:get_parent_id())
     -- Eventually we want this to be something that can be provided
     -- by the provider
@@ -1238,7 +1254,7 @@ end
 function M.set_mark_action(action)
     -- TODO: This should be a global constant
     if not next(M.internal.marked_nodes) then
-        logger.infon('There are no marked nodes, Please mark a node with the "x" button first')
+        logger.infon("There are no marked nodes")
         return
     end
     local is_valid_action = false
@@ -1252,29 +1268,62 @@ function M.set_mark_action(action)
         logger.warnnf("Invalid action selection: %s", action)
         return
     end
-    logger.warnnf('Setting action "%s" to run on marked nodes. To run the action, press "p"', action)
+    logger.warnnf("Marked nodes prepared for %s", action)
     M.internal.mark_action = action
 end
 
-function M.mark_node(state)
-    local node, tree
-    tree = state.tree
-    if not tree then
-        logger.warn("No tree found on neo-tree state. Unable to mark any nodes!")
-        return
-    end
-    node = tree:get_node()
+--- Toggles (or sets) the mark on a single node.
+--- Note, this does _not_ redraw. The caller is expected to do that once it is
+--- done marking, so a visual selection only costs a single redraw
+--- @param node NuiTree.Node
+--- @param force_mark boolean|nil
+---     If provided, the node will be marked instead of having its mark toggled
+--- @return boolean
+---     Whether the node was markable
+local function set_node_mark(node, force_mark)
     if not node.extra or not node.extra.markable then
         logger.warnf("Node: %s is not markable", node:get_id())
-        return
+        return false
     end
-    if node.extra.marked then
+    if node.extra.marked and not force_mark then
         M.internal.marked_nodes[node:get_id()] = nil
         node.extra.marked = nil
     else
         M.internal.marked_nodes[node:get_id()] = 1
         node.extra.marked = true
     end
+    return true
+end
+
+function M.mark_node(state)
+    local tree = state.tree
+    if not tree then
+        logger.warn("No tree found on neo-tree state. Unable to mark any nodes!")
+        return
+    end
+    -- Note, get_node returns (node, linenr_start, linenr_end). Bind it first so
+    -- the extra returns do not spill into set_node_mark as force_mark
+    local node = tree:get_node()
+    if not set_node_mark(node) then return end
+    neo_tree_renderer.redraw(state)
+end
+
+--- Marks every node in the current visual selection.
+--- Note, unlike @see M.mark_node, this does not toggle. A selection that is
+--- already partially marked ends up entirely marked instead of inverted
+--- @param selected_nodes table
+---     The nui nodes neo-tree pulled out of the visual selection
+function M.mark_node_visual(state, selected_nodes)
+    local tree = state.tree
+    if not tree then
+        logger.warn("No tree found on neo-tree state. Unable to mark any nodes!")
+        return
+    end
+    local marked_any = false
+    for _, node in ipairs(selected_nodes) do
+        if set_node_mark(node, true) then marked_any = true end
+    end
+    if not marked_any then return end
     neo_tree_renderer.redraw(state)
 end
 

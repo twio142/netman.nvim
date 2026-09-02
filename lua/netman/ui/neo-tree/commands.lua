@@ -65,6 +65,11 @@ M.mark_node = function(state, callback)
     do_callback(callback)
 end
 
+M.mark_node_visual = function(state, selected_nodes, callback)
+    ui.mark_node_visual(state, selected_nodes)
+    do_callback(callback)
+end
+
 M.paste_node = function(state, callback)
     ui.paste_node(state)
     do_callback(callback)
