@@ -28,6 +28,14 @@ local find_pattern_globs = {
     '^(NAME)=(>?)(.*)$'
 }
 
+--- Single quotes a location so the remote shell treats it as one literal word.
+--- Note, we cannot use vim.fn.shellescape here. It escapes for the _local_ shell
+--- (and these commands are parsed by the shell on the other end of ssh), and it
+--- cannot be called from the async callbacks these commands run in (:h E5560)
+local function shell_escape(location)
+    return "'" .. location:gsub("'", [['\'']]) .. "'"
+end
+
 local M = {}
 M.protocol_patterns = { 'ssh', 'scp', 'sftp' }
 M.name = 'ssh'
@@ -811,7 +819,7 @@ function SSH:touch(locations, opts)
     local __ = {}
     for _, location in ipairs(locations) do
         if location.__type and location.__type == 'netman_uri' then location = location:to_string() end
-        table.insert(touch_command, vim.fn.shellescape(location))
+        table.insert(touch_command, shell_escape(location))
         table.insert(__, location)
     end
     locations = __
@@ -875,7 +883,7 @@ function SSH:mkdir(locations, opts)
     local __ = {}
     for _, location in ipairs(locations) do
         if location.__type and location.__type == 'netman_uri' then location = location:to_string() end
-        table.insert(mkdir_command, vim.fn.shellescape(location))
+        table.insert(mkdir_command, shell_escape(location))
         table.insert(__, location)
     end
     locations = __
@@ -954,7 +962,7 @@ function SSH:rm(locations, opts)
         end
         assert(location.__type and location.__type == 'netman_uri',
             string.format("%s is not a valid netman uri", location))
-        table.insert(rm_command, vim.fn.shellescape(location:to_string()))
+        table.insert(rm_command, shell_escape(location:to_string()))
         table.insert(__, location:to_string())
     end
     locations = __
@@ -1470,7 +1478,7 @@ function SSH:stat(locations, target_flags, opts)
             location = location:to_string()
         end
         table.insert(__, location)
-        table.insert(stat_command, vim.fn.shellescape(location))
+        table.insert(stat_command, shell_escape(location))
     end
     locations = __
     local command_opts = {
